@@ -120,46 +120,46 @@ class HBNBCommand(cmd.Cmd):
             return
 
         args = shlex.split(arg)
-    	class_name = args[0]
+        class_name = args[0]
 
-    	if class_name not in self.classes:
-        	print("** class doesn't exist **")
-        	return
+        if class_name not in self.classes:
+            print("** class doesn't exist **")
+            return
 
-    	# Get the class and instantiate an object
-    	get_class = getattr(sys.modules[__name__], class_name)
-    	new_instance = get_class()
+        # Get the class and instantiate an object
+        get_class = getattr(sys.modules[__name__], class_name)
+        new_instance = get_class()
 
-    	# Parse and set the parameters
-    	for param in args[1:]:
-        	if '=' not in param:
-            	print(f"Invalid parameter: {param}. Skipping.")
-            	continue
-
-        	key, value = param.split('=')
-        	key = key.replace('_', ' ')
-
-        	if value.startswith('"') and value.endswith('"'):
-            # String parameter
-            value = value[1:-1].replace('\\"', '"')  # Unescape double quotes
-        elif '.' in value:
-            # Float parameter
-            try:
-                value = float(value)
-            except ValueError:
-                print(f"Invalid float value: {value}. Skipping.")
-                continue
-        else:
-            # Integer parameter
-            try:
-                value = int(value)
-            except ValueError:
-                print(f"Invalid integer value: {value}. Skipping.")
+        # Parse and set the parameters
+        for param in args[1:]:
+            if '=' not in param:
+                print(f"Invalid parameter: {param}. Skipping.")
                 continue
 
-        setattr(new_instance, key, value)
+            key, value = param.split('=')
+            key = key.replace('_', ' ')
 
-    new_instance.save()
+            if value.startswith('"') and value.endswith('"'):
+                # String parameter
+                value = value[1:-1].replace('\\"', '"')  # Unescape double quotes
+            elif '.' in value:
+                # Float parameter
+                try:
+                    value = float(value)
+                except ValueError:
+                    print(f"Invalid float value: {value}. Skipping.")
+                    continue
+            else:
+                # Integer parameter
+                try:
+                    value = int(value)
+                except ValueError:
+                    print(f"Invalid integer value: {value}. Skipping.")
+                    continue
+
+            setattr(new_instance, key, value)
+
+        new_instance.save()
     print(new_instance.id)
 
     def help_create(self):
