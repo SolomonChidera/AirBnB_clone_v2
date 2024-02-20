@@ -2,8 +2,9 @@
 """ Console Module """
 import cmd
 import sys
+import models
+import shlex
 from models.base_model import BaseModel
-from models.__init__ import storage
 from models.user import User
 from models.place import Place
 from models.state import State
@@ -113,54 +114,54 @@ class HBNBCommand(cmd.Cmd):
         """ Overrides the emptyline method of CMD """
         pass
 
-    def do_create(self, arg):
-        """Creates a new instance of a class with given parameters"""
-        if not arg:
-            print("** class name missing **")
-            return
+	def do_create(self):
+		"""Creates a new instance of a class with given parameters"""
+		if not arg:
+			print("** class name missing **")
+			return
 
-        args = shlex.split(arg)
-        class_name = args[0]
+    	args = shlex.split(arg)
+    	class_name = args[0]
 
-        if class_name not in self.classes:
-            print("** class doesn't exist **")
-            return
+    	if class_name not in self.classes:
+        	print(f"** {class_name} class doesn't exist **")
+        	return
 
-        # Get the class and instantiate an object
-        get_class = getattr(sys.modules[__name__], class_name)
-        new_instance = get_class()
+    	try:
+        	# Get the class and instantiate an object
+        	get_class = getattr(sys.modules[__name__], class_name)
+        	new_instance = get_class()
+    	except Exception as e:
+        	print(f"Error creating instance: {e}")
+        	return
 
-        # Parse and set the parameters
-        for param in args[1:]:
-            if '=' not in param:
-                print(f"Invalid parameter: {param}. Skipping.")
-                continue
+    	# Parse and set the parameters
+    	for param in args[1:]:
+        	if '=' not in param:
+            	print(f"Invalid parameter: {param}. Skipping.")
+            	continue
 
-            key, value = param.split('=')
-            key = key.replace('_', ' ')
+        	key, value = param.split('=')
+        	key = key.replace('_', ' ')
 
-            if value.startswith('"') and value.endswith('"'):
-                # String parameter
-                value = value[1:-1].replace('\\"', '"')  # Unescape double quotes
-            elif '.' in value:
-                # Float parameter
-                try:
-                    value = float(value)
-                except ValueError:
-                    print(f"Invalid float value: {value}. Skipping.")
-                    continue
-            else:
-                # Integer parameter
-                try:
-                    value = int(value)
-                except ValueError:
-                    print(f"Invalid integer value: {value}. Skipping.")
-                    continue
+        	if value.startswith('"') and value.endswith('"'):
+            	# String parameter
+            	value = value[1:-1].replace('\\"', '"')  # Unescape double quotes
+        	else:
+            	try:
+                	# Try converting to integer first
+                	value = int(value)
+            	except ValueError:
+                	try:
+                    	# If not an integer, try converting to float
+                    	value = float(value)
+                	except ValueError:
+                    	# If neither integer nor float, keep it as is
+                    	pass
 
-            setattr(new_instance, key, value)
-
-        new_instance.save()
-    print(new_instance.id)
+        setattr(new_instance, key, value)
+		new_instance.save()
+    	print(new_instance.id))
 
     def help_create(self):
         """ Help information for the create method """
