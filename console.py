@@ -2,15 +2,18 @@
 """ Console Module """
 import cmd
 import sys
-import models
-import shlex
 from models.base_model import BaseModel
+from models.__init__ import storage
 from models.user import User
 from models.place import Place
 from models.state import State
 from models.city import City
 from models.amenity import Amenity
 from models.review import Review
+import re
+from models import storage_type
+from uuid import uuid4
+from datetime import datetime
 
 
 class HBNBCommand(cmd.Cmd):
@@ -74,8 +77,8 @@ class HBNBCommand(cmd.Cmd):
                 pline = pline[2].strip()  # pline is now str
                 if pline:
                     # check for *args or **kwargs
-                    if pline[0] == '{' and pline[-1] =='}'\
-                            and type(eval(pline)) == dict:
+                    if pline[0] == '{' and pline[-1] == '}'\
+                            and type(eval(pline)) is dict:
                         _args = pline
                     else:
                         _args = pline.replace(',', '')
@@ -114,54 +117,63 @@ class HBNBCommand(cmd.Cmd):
         """ Overrides the emptyline method of CMD """
         pass
 
-	def do_create(self):
-		"""Creates a new instance of a class with given parameters"""
-		if not arg:
-			print("** class name missing **")
-			return
+    def do_create(self, args):
+        """ Create an object of any class"""
+        name_pattern = r'(?P<name>(?:[a-zA-Z_])(?:\w)*)'
+        string_pattern = r'(?P<p_string>"([^"]|\")*")'
+        float_pattern = r'(?P<p_float>[-+]?\d+\.\d+)'
+        int_pattern = r'(?P<p_int>[-+]?\d+)'
+        param_pattern = '{}=({}|{}|{})'.format(
+            name_pattern,
+            string_pattern,
+            float_pattern,
+            int_pattern
+        )
 
-    	args = shlex.split(arg)
-    	class_name = args[0]
+        class_name = ''
+        p_kwargs = {}
+        not_updated_attrs = ['id', 'updated_at', 'created_at', '__class__']
+        class_match = re.match(name_pattern, args)
+        if class_match is not None:  # There is a match
+            class_name = class_match.group('name')
+            params = args[len(class_name):].strip().split()
+            for param in params:
+                param_fullmatch = re.fullmatch(param_pattern, param)
+                if param_fullmatch is not None:
+                    key_name = param_fullmatch.group('name')
+                    str_value = param_fullmatch.group('p_string')
+                    float_value = param_fullmatch.group('p_float')
+                    int_value = param_fullmatch.group('p_int')
+                    if str_value is not None:
+                        p_kwargs[key_name] = str_value[1:-1].replace('_', ' ')
+                    if float_value is not None:
+                        p_kwargs[key_name] = float(float_value)
+                    if int_value is not None:
+                        p_kwargs[key_name] = int(int_value)
+        else:  # There is no match for className
+            class_name = args
 
-    	if class_name not in self.classes:
-        	print(f"** {class_name} class doesn't exist **")
-        	return
-
-    	try:
-        	# Get the class and instantiate an object
-        	get_class = getattr(sys.modules[__name__], class_name)
-        	new_instance = get_class()
-    	except Exception as e:
-        	print(f"Error creating instance: {e}")
-        	return
-
-    	# Parse and set the parameters
-    	for param in args[1:]:
-        	if '=' not in param:
-            	print(f"Invalid parameter: {param}. Skipping.")
-            	continue
-
-        	key, value = param.split('=')
-        	key = key.replace('_', ' ')
-
-        	if value.startswith('"') and value.endswith('"'):
-            	# String parameter
-            	value = value[1:-1].replace('\\"', '"')  # Unescape double quotes
-        	else:
-            	try:
-                	# Try converting to integer first
-                	value = int(value)
-            	except ValueError:
-                	try:
-                    	# If not an integer, try converting to float
-                    	value = float(value)
-                	except ValueError:
-                    	# If neither integer nor float, keep it as is
-                    	pass
-
-        setattr(new_instance, key, value)
-		new_instance.save()
-    	print(new_instance.id))
+        if not class_name:
+            print("** class name missing **")
+            return
+        elif class_name not in HBNBCommand.classes:
+            print("** class doesn't exist **")
+            return
+        if storage_type == 'db':
+            if not hasattr(p_kwargs, 'id'):
+                p_kwargs['id'] = str(uuid4())
+            if not hasattr(p_kwargs, 'created_at'):
+                p_kwargs['created_at'] = str(datetime.now())
+            if not hasattr(p_kwargs, 'updated_at'):
+                p_kwargs['updated_at'] = str(datetime.now())
+            new_instance = HBNBCommand.classes[class_name](**p_kwargs)
+        else:
+            new_instance = HBNBCommand.classes[class_name]()
+            for k, v in p_kwargs.items():
+                if k not in not_updated_attrs:
+                    setattr(new_instance, k, v)
+        new_instance.save()
+        print(new_instance.id)
 
     def help_create(self):
         """ Help information for the create method """
@@ -192,7 +204,7 @@ class HBNBCommand(cmd.Cmd):
 
         key = c_name + "." + c_id
         try:
-            print(storage._FileStorage__objects[key])
+            print(storage.all()[key])
         except KeyError:
             print("** no instance found **")
 
@@ -224,7 +236,7 @@ class HBNBCommand(cmd.Cmd):
         key = c_name + "." + c_id
 
         try:
-            del(storage.all()[key])
+            del (storage.all()[key])
             storage.save()
         except KeyError:
             print("** no instance found **")
@@ -243,11 +255,11 @@ class HBNBCommand(cmd.Cmd):
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 if k.split('.')[0] == args:
                     print_list.append(str(v))
         else:
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 print_list.append(str(v))
 
         print(print_list)
@@ -260,7 +272,7 @@ class HBNBCommand(cmd.Cmd):
     def do_count(self, args):
         """Count current number of class instances"""
         count = 0
-        for k, v in storage._FileStorage__objects.items():
+        for k, v in storage.all().items():
             if args == k.split('.')[0]:
                 count += 1
         print(count)
@@ -301,7 +313,7 @@ class HBNBCommand(cmd.Cmd):
             return
 
         # first determine if kwargs or args
-        if '{' in args[2] and '}' in args[2] and type(eval(args[2])) == dict:
+        if '{' in args[2] and '}' in args[2] and type(eval(args[2])) is dict:
             kwargs = eval(args[2])
             args = []  # reformat kwargs into list, ex: [<name>, <value>, ...]
             for k, v in kwargs.items():
@@ -356,6 +368,7 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the update class """
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
+
 
 if __name__ == "__main__":
     HBNBCommand().cmdloop()
