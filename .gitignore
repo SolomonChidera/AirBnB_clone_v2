@@ -33,6 +33,9 @@ MANIFEST
 *.manifest
 *.spec
 
+#unwanted json stuff
+file.json
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
